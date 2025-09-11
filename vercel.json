@@ -1,18 +1,12 @@
 {
+  "redirects": [
+    { "source": "/t", "destination": "/api/t", "permanent": false },
+    { "source": "/t/(.*)", "destination": "/api/t", "permanent": false }
+  ],
   "rewrites": [
-    {
-      "source": "/t",
-      "destination": "/api/t"
-    },
-    {
-      "source": "/t/(.*)",
-      "destination": "/api/t"
-    },
-    {
-      "source": "/claim",
-      "destination": "/claim/index.html"
-    }
+    { "source": "/claim", "destination": "/claim/index.html" }
   ]
 }
+
 
 
