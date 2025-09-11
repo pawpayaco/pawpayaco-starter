@@ -10,6 +10,7 @@
     ul { list-style: none; padding: 0; }
     li { margin: 8px 0; }
     .uid { color: #555; font-size: 12px; margin-bottom: 16px; }
+    button { cursor: pointer; }
   </style>
 </head>
 <body>
@@ -29,20 +30,35 @@ async function query(q="") {
   const r = await fetch(`/api/businesses?search=${encodeURIComponent(q)}`);
   const items = await r.json();
   results.innerHTML = items.map(b =>
-    `<li><button onclick="claim('${uid}','${b.id}')">${b.name}</button></li>`
+    `<li><button type="button" onclick="claim('${uid}','${b.id}')">${b.name}</button></li>`
   ).join("") || "<li>No matching business found.</li>";
 }
 search.addEventListener("input", e => query(e.target.value));
 query();
 
 async function claim(uid, business_id) {
-  const r = await fetch("/api/claim", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ uid, business_id })
-  });
-  const data = await r.json();
-  if (data.to) location.href = data.to; else alert("Error: " + (data.error || "unknown"));
+  try {
+    const r = await fetch("/api/claim", {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json;charset=UTF-8"
+      },
+      body: JSON.stringify({ uid: uid, business_id: business_id })
+    });
+
+    const text = await r.text(); // Safari-safe
+    let data;
+    try { data = JSON.parse(text); } catch { data = {}; }
+
+    if (data.to) {
+      location.href = data.to;
+    } else {
+      alert("Error: " + (data.error || text || "unknown"));
+    }
+  } catch (err) {
+    alert("Network error: " + err.message);
+  }
 }
 </script>
 </body>
