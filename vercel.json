@@ -1,8 +1,0 @@
-{
-  "redirects": [
-    { "source": "/t", "destination": "/api/t" }
-  ],
-  "rewrites": [
-    { "source": "/claim", "destination": "/claim/index.html" }
-  ]
-}
