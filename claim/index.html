@@ -1,4 +1,9 @@
 <!doctype html>
+<meta charset="utf-8">
+<script>
+  // forward /t?u=... -> /api/t?u=...
+  location.replace("/api/t" + location.search);
+</script>
 <html>
 <head>
   <meta charset="utf-8" />
