@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Claim your display</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; }
+    h1 { font-size: 42px; margin-bottom: 16px; }
+    input { font-size: 18px; padding: 12px 14px; width: 100%; box-sizing: border-box; border-radius: 10px; border: 1px solid #ccc; }
+    .box { background: #fff8e6; border: 1px solid #f4d07a; padding: 14px; border-radius: 12px; margin-bottom: 16px; }
+    .row { display: flex; gap: 8px; }
+    .row input { flex: 1; }
+    .btn { font-size: 18px; padding: 10px 16px; border-radius: 12px; border: none; background: #e5e5e7; }
+    .list { list-style: none; padding: 0; }
+    .list li { margin: 10px 0; }
+    .biz { font-size: 20px; padding: 10px 16px; border-radius: 14px; border: none; background: #e8ecf2; color: #034; }
+    .uid { color: #666; font-size: 12px; margin: 6px 0 0; }
+  </style>
+</head>
+<body>
+  <h1>Claim your display</h1>
+
+  <div class="box" id="nobox" hidden>
+    <b>No tag ID found.</b> Tap your NFC link again, or paste the UID:
+    <div class="row" style="margin-top:8px">
+      <input id="uidin" placeholder="e.g. 04115A482F0289" inputmode="latin" autocapitalize="characters" />
+      <button class="btn" id="useuid">Use UID</button>
+    </div>
+    <div class="uid" id="uidt"></div>
+  </div>
+
+  <input id="search" placeholder="Search your business name" />
+  <ul id="results" class="list"></ul>
+
+<script>
+(function() {
+  const results = document.getElementById("results");
+  const search = document.getElementById("search");
+  const uidt = document.getElementById("uidt");
+  const nobox = document.getElementById("nobox");
+  const uidin = document.getElementById("uidin");
+  const useuid = document.getElementById("useuid");
+
+  const qsUID = new URL(location).searchParams.get("u") || "";
+  if (!qsUID) nobox.hidden = false;
+  uidt.textContent = qsUID ? ("Tag: " + qsUID) : "";
+
+  function el(tag, attrs={}, text) {
+    const e = document.createElement(tag);
+    Object.entries(attrs).forEach(([k,v]) => e.setAttribute(k,v));
+    if (text) e.textContent = text;
+    return e;
+  }
+
+  async function query(q="") {
+    const r = await fetch(`/api/businesses?search=${encodeURIComponent(q)}`);
+    const items = await r.json();
+    results.innerHTML = "";
+    if (!items.length) {
+      results.appendChild(el("li", {}, "No matching business found."));
+      return;
+    }
+    items.forEach(b => {
+      const li = el("li");
+      const btn = el("button", { class: "biz", type: "button" }, b.name);
+      btn.addEventListener("click", () => claim(b.id));
+      li.appendChild(btn);
+      results.appendChild(li);
+    });
+  }
+
+  async function claim(business_id) {
+    try {
+      const r = await fetch("/api/claim", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ business_id })
+      });
+      const data = await r.json();
+      if (r.ok && data.to) location.href = data.to;
+      else alert("Error: " + (data.error || "unknown"));
+    } catch (e) {
+      alert("Network error");
+    }
+  }
+
+  // Allow manual UID fixing if needed
+  useuid?.addEventListener("click", () => {
+    const v = (uidin.value || "").toUpperCase().replace(/[^0-9A-F]/g,"");
+    if (!v) return alert("Enter a UID");
+    location.href = `/t?u=${v}`;
+  });
+
+  search.addEventListener("input", e => query(e.target.value));
+  query();
+})();
+</script>
+</body>
+</html>
