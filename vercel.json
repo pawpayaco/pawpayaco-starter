@@ -1,6 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/t", "destination": "/api/t" },
-    { "source": "/claim", "destination": "/claim/index.html" }
-  ]
-}
