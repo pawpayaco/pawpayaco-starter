@@ -9,68 +9,35 @@
     input, button { font-size: 16px; padding: 10px; }
     ul { list-style: none; padding: 0; }
     li { margin: 8px 0; }
-    .uid { color: #555; font-size: 12px; margin-bottom: 16px; }
-    .warn { background: #fdf2d2; padding: 10px; border-radius: 8px; margin-bottom: 16px; }
+    .pill { display:inline-block; padding:10px 14px; border-radius:12px; background:#eee; }
   </style>
 </head>
 <body>
   <h1>Claim your display</h1>
-  <div class="uid" id="uidt"></div>
 
-  <div id="uidBox" style="display:none;" class="warn">
-    <b>No tag ID found.</b> Tap your NFC link again, or paste the UID:
-    <div style="margin-top:8px;">
-      <input id="uidInput" placeholder="e.g. 04115A482F0289" />
-      <button onclick="setUid()">Use UID</button>
-    </div>
-  </div>
-
-  <input id="search" placeholder="Search your business name" autofocus />
+  <input id="search" placeholder="Search your business name" />
   <ul id="results"></ul>
 
 <script>
-let uid = new URL(location).searchParams.get("u") || "";
-
-const uidBox = document.getElementById("uidBox");
-const uidDisplay = document.getElementById("uidt");
 const results = document.getElementById("results");
 const search = document.getElementById("search");
 
-function renderUid() {
-  if (uid) {
-    uidDisplay.textContent = "Tag: " + uid;
-    uidBox.style.display = "none";
-  } else {
-    uidDisplay.textContent = "";
-    uidBox.style.display = "block";
-  }
-}
-renderUid();
-
-function setUid() {
-  const val = document.getElementById("uidInput").value.trim().toUpperCase();
-  if (val) {
-    uid = val.replace(/[^0-9A-F]/g, "");
-    renderUid();
-  }
-}
-
 async function query(q="") {
-  const r = await fetch(`/api/businesses?search=${encodeURIComponent(q)}`);
+  const r = await fetch(`/api/businesses?search=${encodeURIComponent(q)}`, { cache: "no-store" });
   const items = await r.json();
   results.innerHTML = items.map(b =>
-    `<li><button onclick="claim('${b.id}')">${b.name}</button></li>`
+    `<li><button class="pill" onclick="claim('${b.id}')">${b.name}</button></li>`
   ).join("") || "<li>No matching business found.</li>";
 }
 search.addEventListener("input", e => query(e.target.value));
 query();
 
 async function claim(business_id) {
-  if (!uid) { alert("Error: missing UID"); return; }
+  // UID comes from the HttpOnly cookie set by /t
   const r = await fetch("/api/claim", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ uid, business_id })
+    body: JSON.stringify({ business_id })
   });
   const data = await r.json();
   if (data.to) location.href = data.to;
