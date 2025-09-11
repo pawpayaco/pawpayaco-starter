@@ -9,114 +9,73 @@
     input, button { font-size: 16px; padding: 10px; }
     ul { list-style: none; padding: 0; }
     li { margin: 8px 0; }
-    .uid { color: #555; font-size: 12px; margin: 12px 0 16px; }
-    .warn { background:#fff3cd; border:1px solid #ffe08a; padding:10px; border-radius:8px; margin:12px 0; }
-    button { cursor: pointer; }
+    .uid { color: #555; font-size: 12px; margin-bottom: 16px; }
+    .warn { background: #fdf2d2; padding: 10px; border-radius: 8px; margin-bottom: 16px; }
   </style>
 </head>
 <body>
   <h1>Claim your display</h1>
-
   <div class="uid" id="uidt"></div>
-  <div id="uid-missing" class="warn" style="display:none">
-    <div><strong>No tag ID found.</strong> Tap your NFC link again, or paste the UID:</div>
+
+  <div id="uidBox" style="display:none;" class="warn">
+    <b>No tag ID found.</b> Tap your NFC link again, or paste the UID:
     <div style="margin-top:8px;">
-      <input id="uidInput" placeholder="e.g. 04115A482F0289" autocapitalize="off" autocorrect="off" />
-      <button type="button" id="setUidBtn">Use UID</button>
+      <input id="uidInput" placeholder="e.g. 04115A482F0289" />
+      <button onclick="setUid()">Use UID</button>
     </div>
   </div>
 
-  <input id="search" placeholder="Search your business name" />
+  <input id="search" placeholder="Search your business name" autofocus />
   <ul id="results"></ul>
 
 <script>
+let uid = new URL(location).searchParams.get("u") || "";
+
+const uidBox = document.getElementById("uidBox");
+const uidDisplay = document.getElementById("uidt");
 const results = document.getElementById("results");
-const search  = document.getElementById("search");
-const uidt    = document.getElementById("uidt");
-const uidMissing = document.getElementById("uid-missing");
-const uidInput   = document.getElementById("uidInput");
-const setUidBtn  = document.getElementById("setUidBtn");
+const search = document.getElementById("search");
 
-function getUidFromUrl() {
-  return (new URL(location.href)).searchParams.get("u") || "";
-}
-function normUID(x="") {
-  return (x || "").toUpperCase().replace(/[^0-9A-F]/g,"");
-}
-
-let UID = normUID(getUidFromUrl()) || normUID(sessionStorage.getItem("uid") || "");
-
-function showUid() {
-  if (UID) {
-    uidt.textContent = "Tag: " + UID;
-    uidMissing.style.display = "none";
-    sessionStorage.setItem("uid", UID);
+function renderUid() {
+  if (uid) {
+    uidDisplay.textContent = "Tag: " + uid;
+    uidBox.style.display = "none";
   } else {
-    uidt.textContent = "";
-    uidMissing.style.display = "block";
+    uidDisplay.textContent = "";
+    uidBox.style.display = "block";
   }
 }
-showUid();
+renderUid();
 
-setUidBtn.addEventListener("click", () => {
-  UID = normUID(uidInput.value);
-  showUid();
-});
+function setUid() {
+  const val = document.getElementById("uidInput").value.trim().toUpperCase();
+  if (val) {
+    uid = val.replace(/[^0-9A-F]/g, "");
+    renderUid();
+  }
+}
 
 async function query(q="") {
   const r = await fetch(`/api/businesses?search=${encodeURIComponent(q)}`);
   const items = await r.json();
   results.innerHTML = items.map(b =>
-    `<li><button type="button" data-bid="${b.id}">${b.name}</button></li>`
+    `<li><button onclick="claim('${b.id}')">${b.name}</button></li>`
   ).join("") || "<li>No matching business found.</li>";
 }
 search.addEventListener("input", e => query(e.target.value));
 query();
 
-// iOS-friendly click handler (delegated)
-results.addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-bid]");
-  if (!btn) return;
-  claim(UID, btn.getAttribute("data-bid"));
-});
-
-async function claim(uid, business_id) {
-  uid = normUID(uid);
-  if (!uid || !business_id) {
-    alert("Error: missing UID or business.");
-    return;
-  }
-  try {
-    const r = await fetch("/api/claim", {
-      method: "POST",
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json;charset=UTF-8"
-      },
-      body: JSON.stringify({ uid, business_id })
-    });
-    const text = await r.text();     // Safari-safe parse
-    let data = {};
-    try { data = JSON.parse(text); } catch {}
-    if (data.to) {
-      location.href = data.to;
-    } else {
-      alert("Error: " + (data.error || text || "unknown"));
-    }
-  } catch (err) {
-    alert("Network error: " + err.message);
-  }
+async function claim(business_id) {
+  if (!uid) { alert("Error: missing UID"); return; }
+  const r = await fetch("/api/claim", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ uid, business_id })
+  });
+  const data = await r.json();
+  if (data.to) location.href = data.to;
+  else alert("Error: " + (data.error || "unknown"));
 }
-
-// If you arrive via /t?u=... and Safari later drops the query on refresh,
-// this keeps it alive via sessionStorage.
-window.addEventListener("pageshow", () => {
-  const fresh = normUID(getUidFromUrl());
-  if (fresh && fresh !== UID) {
-    UID = fresh;
-    showUid();
-  }
-});
 </script>
 </body>
 </html>
