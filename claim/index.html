@@ -1,49 +1,354 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Claim your display</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Pawpaya — Claim Your Display</title>
+  <meta name="theme-color" content="#f97316"/>
   <style>
-    body { font-family: system-ui, -apple-system; margin: 24px; }
-    input, button { font-size: 16px; padding: 10px; }
-    ul { list-style: none; padding: 0; }
-    li { margin: 8px 0; }
-    .uid { color: #555; font-size: 12px; margin-bottom: 16px; }
+    :root{
+      --bg1:#fff7f7;--bg2:#fff5ee;--ink:#1f2937;--muted:#6b7280;--brand:#f97316;--brand-2:#fb7185;
+      --card:#ffffff;--line:#e5e7eb;--ok:#16a34a;--err:#dc2626;--ring: 0 0 0 8px rgba(249,115,22,.12);
+    }
+    @media (prefers-color-scheme:dark){
+      :root{
+        --bg1:#141318;--bg2:#191824;--ink:#e5e7eb;--muted:#9ca3af;--brand:#fb923c;--brand-2:#fb7185;
+        --card:#201f2a;--line:#2a2935;--ok:#22c55e;--err:#ef4444;--ring: 0 0 0 8px rgba(251,146,60,.18);
+      }
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
+      color:var(--ink);
+      background: radial-gradient(1200px 700px at 10% -10%, var(--bg2), transparent 60%),
+                  radial-gradient(1200px 700px at 100% 10%, var(--bg1), transparent 60%),
+                  linear-gradient(180deg, var(--bg1), var(--bg2));
+    }
+    .wrap{max-width:720px;margin:0 auto;padding:24px}
+    header{display:flex;align-items:center;justify-content:space-between;padding:18px 0 12px}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{height:40px;width:40px;border-radius:12px;background:linear-gradient(135deg,var(--brand),var(--brand-2));
+      color:#fff;display:grid;place-items:center;font-weight:800;box-shadow:0 6px 18px rgba(249,115,22,.25)}
+    .title{line-height:1.15;margin:0;font-size:20px;font-weight:800}
+    .subtitle{margin:2px 0 0;font-size:12px;color:var(--muted)}
+    .help{font-size:13px;color:var(--brand);text-decoration:none}
+    .card{
+      position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;
+      padding:18px;box-shadow:0 8px 28px rgba(20,20,30,.08)
+    }
+    .ribbon{position:absolute;left:16px;top:-10px;background:#111;color:#fff;border-radius:999px;
+      padding:6px 10px;font-size:11px;letter-spacing:.02em}
+    .grid{display:grid;gap:14px}
+    .row{display:flex;gap:8px;align-items:center}
+    .steps{display:flex;gap:14px;align-items:center;font-size:12px;color:var(--muted);margin:4px 0 12px}
+    .step{display:flex;gap:8px;align-items:center}
+    .dot{height:22px;width:22px;border-radius:999px;border:1px solid var(--line);display:grid;place-items:center}
+    .step.live{color:var(--brand)} .step.done{color:var(--ok)}
+    .hdr{font-size:18px;font-weight:700;margin:6px 0}
+    .p{color:var(--muted);font-size:13px;margin:0}
+    .field{position:relative}
+    input[type="text"]{
+      width:100%;height:48px;border:1px solid var(--line);border-radius:12px;background:transparent;
+      color:var(--ink);padding:0 44px 0 14px;font-size:16px;outline:none
+    }
+    input[type="text"]:focus{box-shadow:var(--ring);border-color:rgba(249,115,22,.45)}
+    .kbd{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--muted)}
+    .list{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+    .item{display:flex;justify-content:space-between;align-items:center;padding:12px 12px;border-top:1px solid var(--line);
+      background:transparent}
+    .item:first-child{border-top:0}
+    .btn{height:40px;border:0;border-radius:10px;padding:0 14px;background:var(--brand);color:#fff;
+      font-weight:700;cursor:pointer}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+    .muted{color:var(--muted)}
+    .hint{font-size:11px;color:var(--muted)}
+    .center{text-align:center}
+    .spinner{height:18px;width:18px;border:3px solid rgba(0,0,0,.15);border-top-color:currentColor;border-radius:50%;
+      animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .banner{padding:10px 12px;border-radius:12px;font-size:13px}
+    .ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:var(--ok)}
+    .err{background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.3);color:var(--err)}
+    footer{margin-top:14px;text-align:center;font-size:11px;color:var(--muted)}
+    .pill{display:inline-flex;gap:8px;align-items:center;border:1px dashed var(--line);border-radius:999px;
+      padding:6px 10px;font-size:11px}
+    .kbd2{font:600 11px/1 ui-monospace,Menlo,Consolas,monospace;background:rgba(0,0,0,.06);padding:.2em .5em;border-radius:6px}
+    .hidden{display:none}
+    .right{margin-left:auto}
   </style>
 </head>
 <body>
-  <h1>Claim your display</h1>
-  <div class="uid" id="uidt"></div>
-  <input id="search" placeholder="Search your business name" autofocus />
-  <ul id="results"></ul>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo">P</div>
+        <div>
+          <h1 class="title">Claim your display</h1>
+          <p class="subtitle">Bind this NFC tag to your business. First claim wins.</p>
+        </div>
+      </div>
+      <a class="help" href="mailto:support@pawpayaco.com?subject=NFC%20Claim%20Help">Help</a>
+    </header>
 
-<script>
-const uid = new URL(location).searchParams.get("u") || "";
-document.getElementById("uidt").textContent = uid ? ("Tag: " + uid) : "";
+    <section class="card">
+      <div id="uidRibbon" class="ribbon">UID: —</div>
 
-const results = document.getElementById("results");
-const search = document.getElementById("search");
+      <div class="steps">
+        <div id="s1" class="step"><span class="dot">1</span>Detect</div>
+        <div id="s2" class="step"><span class="dot">2</span>Choose</div>
+        <div id="s3" class="step"><span class="dot">3</span>Redirect</div>
+      </div>
 
-async function query(q="") {
-  const r = await fetch(`/api/businesses?search=${encodeURIComponent(q)}`);
-  const items = await r.json();
-  results.innerHTML = items.map(b =>
-    `<li><button onclick="claim('${uid}','${b.id}')">${b.name}</button></li>`
-  ).join("") || "<li>No matching business found.</li>";
-}
-search.addEventListener("input", e => query(e.target.value));
-query();
+      <div id="statusArea" class="grid">
+        <!-- dynamic content goes here -->
+      </div>
+    </section>
 
-async function claim(uid, business_id) {
-  const r = await fetch("/api/claim", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ uid, business_id })
-  });
-  const data = await r.json();
-  if (data.to) location.href = data.to; else alert("Error: " + (data.error || "unknown"));
-}
-</script>
+    <footer>
+      Having trouble? Email <a class="help" href="mailto:support@pawpayaco.com">support@pawpayaco.com</a>
+    </footer>
+  </div>
+
+  <template id="tpl-checking">
+    <div class="center" style="padding:22px 6px">
+      <div class="spinner" style="margin:0 auto 8px;color:var(--brand)"></div>
+      <div class="muted">Checking tag status…</div>
+    </div>
+  </template>
+
+  <template id="tpl-error">
+    <div class="banner err"></div>
+    <div class="row">
+      <button class="btn ghost" id="retryBtn">Try again</button>
+      <a class="btn right" id="supportBtn" href="#">Contact support</a>
+    </div>
+  </template>
+
+  <template id="tpl-claimed">
+    <div class="center" style="padding:12px 6px">
+      <div class="banner ok" style="display:inline-block">This tag is already linked. Redirecting…</div>
+      <div class="hint" style="margin-top:8px">If nothing happens, press <a id="gotoLink" class="help" href="#">continue</a>.</div>
+    </div>
+  </template>
+
+  <template id="tpl-search">
+    <div class="grid">
+      <div>
+        <div class="hdr">Select your business</div>
+        <p class="p">Start typing to search. Use <span class="kbd2">↑</span>/<span class="kbd2">↓</span> and <span class="kbd2">Enter</span> to pick.</p>
+      </div>
+
+      <div class="field">
+        <input id="search" type="text" placeholder="Search your business name" autocomplete="organization"/>
+        <div class="kbd">⌘K</div>
+      </div>
+
+      <ul id="results" class="list hidden" role="listbox" aria-label="Businesses"></ul>
+
+      <div class="row">
+        <span class="pill">Can’t find it? <span class="muted">Ask us to add it.</span></span>
+        <a id="reqAdd" class="btn ghost right" href="#">Request add</a>
+      </div>
+
+      <div class="hint">Tip: you can prefill search with <code>?b=Happy%20Paws</code> in the URL.</div>
+    </div>
+  </template>
+
+  <template id="tpl-empty">
+    <li class="item muted" aria-disabled="true">No matching business found.</li>
+  </template>
+
+  <template id="tpl-item">
+    <li class="item">
+      <div>
+        <div class="name" style="font-weight:700"></div>
+        <div class="hint" style="margin-top:4px"><span class="muted">ID:</span> <span class="id"></span></div>
+      </div>
+      <button class="btn claimBtn">Claim</button>
+    </li>
+  </template>
+
+  <script>
+    // ---------- utilities ----------
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+    const clone = (tplId) => document.getElementById(tplId).content.cloneNode(true);
+    const sleep = (ms) => new Promise(r=>setTimeout(r,ms));
+    const debouncer = (fn, ms=250) => {
+      let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); };
+    };
+
+    // ---------- state ----------
+    const params = new URL(location.href).searchParams;
+    const UID = (params.get("u") || "").trim();
+    const B_HINT = (params.get("b") || "").trim();
+
+    // ---------- mount ----------
+    const ribbon = $("#uidRibbon");
+    ribbon.textContent = "UID: " + (UID || "—");
+
+    const area = $("#statusArea");
+    stepLive(1);
+    area.append(clone("tpl-checking"));
+
+    // Pre-check: if API supports GET /api/claim?u= to see if claimed, use it.
+    // If not, we just proceed to search UI.
+    (async function init(){
+      if (!UID){
+        showError("Missing UID in the URL (?u=…)", true);
+        return;
+      }
+      try{
+        const res = await fetch(`/api/claim?u=${encodeURIComponent(UID)}`, { method:"GET" });
+        if (res.ok){
+          const data = await res.json();
+          // Accept a couple of possible shapes
+          const to = data.to || data.affiliateUrl || (data.status==="claimed" ? data.to : null);
+          if (to){
+            stepDone(1); stepLive(3);
+            area.innerHTML = "";
+            const frag = clone("tpl-claimed");
+            const a = $("a#gotoLink", frag); a.href = to;
+            area.append(frag);
+            await sleep(600);
+            location.replace(to);
+            return;
+          }
+        }
+      }catch(e){/* non-fatal; continue to search */ }
+
+      // Show search UI
+      stepDone(1); stepLive(2);
+      area.innerHTML = "";
+      const frag = clone("tpl-search");
+      area.append(frag);
+      const inp = $("#search"); const list = $("#results");
+      if (B_HINT){ inp.value = B_HINT; query(B_HINT); }
+      else query("");
+
+      // Keyboard nav
+      let idx = -1;
+      const move = (d)=>{
+        const items = $$(".item", list);
+        if (!items.length) return;
+        idx = (idx + d + items.length) % items.length;
+        items.forEach((el,i)=> el.style.outline = i===idx ? "2px solid var(--brand)" : "none");
+        items[idx].scrollIntoView({block:"nearest"});
+      };
+      inp.addEventListener("keydown", (e)=>{
+        if (e.key==="ArrowDown"){ e.preventDefault(); move(1); }
+        else if (e.key==="ArrowUp"){ e.preventDefault(); move(-1); }
+        else if (e.key==="Enter"){
+          const items = $$(".item", list);
+          if (idx>=0 && idx<items.length){
+            const btn = $(".claimBtn", items[idx]); btn?.click();
+          }
+        }
+      });
+      // Cmd/Ctrl+K focus
+      window.addEventListener("keydown",(e)=>{
+        if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="k"){ e.preventDefault(); inp.focus(); inp.select(); }
+      });
+
+      const doQuery = debouncer((v)=>query(v), 220);
+      inp.addEventListener("input", e=> doQuery(e.target.value));
+
+      // Request add
+      $("#reqAdd").addEventListener("click",(e)=>{
+        e.preventDefault();
+        const subj = encodeURIComponent("Add business to Pawpaya");
+        const body = encodeURIComponent(`Please add my business so I can claim this tag.\n\nBusiness name: ${inp.value || "(type here)"}\nTag UID: ${UID}\nContact: (name/email/phone)`);
+        location.href = `mailto:support@pawpayaco.com?subject=${subj}&body=${body}`;
+      });
+
+      async function query(q){
+        list.classList.remove("hidden");
+        list.innerHTML = "";
+        list.append(spinnerRow());
+        try{
+          const r = await fetch(`/api/businesses?search=${encodeURIComponent(q||"")}`);
+          if (!r.ok) throw new Error("Search failed");
+          const items = await r.json();
+          list.innerHTML = "";
+          if (!items || !items.length){
+            list.append(clone("tpl-empty"));
+            return;
+          }
+          idx = -1;
+          for (const b of items.slice(0,12)){
+            const row = clone("tpl-item");
+            $(".name", row).textContent = b.name || "Unnamed";
+            $(".id", row).textContent = b.id || "—";
+            const btn = $(".claimBtn", row);
+            btn.addEventListener("click", ()=> claim(UID, b.id, btn));
+            list.append(row);
+          }
+        }catch(e){
+          list.innerHTML = "";
+          const li = document.createElement("li"); li.className="item";
+          li.innerHTML = `<div class="muted">Search error. <button class="btn ghost" onclick="location.reload()">Reload</button></div>`;
+          list.append(li);
+        }
+      }
+    })();
+
+    function spinnerRow(){
+      const li = document.createElement("li");
+      li.className="item";
+      li.innerHTML = `<div class="row"><div class="spinner" style="color:var(--brand)"></div><span class="muted">Loading…</span></div>`;
+      return li;
+    }
+
+    async function claim(uid, business_id, btn){
+      if (!uid || !business_id) return;
+      const orig = btn.textContent;
+      btn.disabled = true; btn.innerHTML = `<span class="row" style="gap:8px"><span class="spinner"></span>Claiming…</span>`;
+      try{
+        const r = await fetch("/api/claim", {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ uid, business_id })
+        });
+        const data = await r.json().catch(()=> ({}));
+        if (r.ok && (data.to || data.affiliateUrl)){
+          stepDone(2); stepLive(3);
+          await sleep(250);
+          location.replace(data.to || data.affiliateUrl);
+          return;
+        }
+        if (r.status===409 && (data.to || data.affiliateUrl)){
+          // already claimed—send them along
+          stepDone(2); stepLive(3);
+          await sleep(150);
+          location.replace(data.to || data.affiliateUrl);
+          return;
+        }
+        // Soft-fallback: show error
+        showError(data.error || data.message || "Claim failed. Please try again.");
+        btn.disabled = false; btn.textContent = orig;
+      }catch(e){
+        showError("Network error. Check connection and try again.");
+        btn.disabled = false; btn.textContent = orig;
+      }
+    }
+
+    function showError(msg, hard=false){
+      const area = $("#statusArea");
+      area.innerHTML = "";
+      const frag = clone("tpl-error");
+      $(".banner", frag).textContent = msg;
+      const sup = $("#supportBtn", frag);
+      sup.href = `mailto:support@pawpayaco.com?subject=NFC%20Claim%20Help&body=UID:%20${encodeURIComponent(UID)}%0AError:%20${encodeURIComponent(msg)}`;
+      $("#retryBtn", frag).addEventListener("click", ()=> location.reload());
+      area.append(frag);
+      if (hard){ stepLive(1); } else { stepLive(2); }
+    }
+
+    function stepLive(n){ [1,2,3].forEach(i=> $("#s"+i).className = "step" + (i===n?" live":"")); }
+    function stepDone(n){ $("#s"+n).className = "step done"; }
+  </script>
 </body>
 </html>
+
