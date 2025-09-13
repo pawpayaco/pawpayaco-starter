@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#ff8ea3"/>
   <style>
     /* =====================
-       AURA THEME — Pawpaya (Simplified: no beads, no stepper, no footer tip)
+       AURA THEME — Pawpaya (Simplified)
        ===================== */
     :root{
       --ink:#1f2937;--muted:#6b7280;--line:#e5e7eb;--ok:#16a34a;--err:#dc2626;
@@ -18,32 +18,7 @@
     @media (prefers-color-scheme:dark){
       :root{--ink:#e5e7eb;--muted:#9ca3af;--line:#2a2935;--card:#1d1b24;--ring:0 0 0 12px rgba(255,111,179,.18);--bg-1:#181622;--bg-2:#211d2a}
     }
-    #uidRibbon {
-  display: none !important;
-}
 
-    h1.title {
-  margin-bottom: 8px !important; /* change 18px to whatever you like */
-}
-
-    h1.title,
-.hdr {
-  text-align: center !important;
-  display: block !important;
-  width: 100% !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-}
-    
-   header .brand {
-  justify-content: center !important;
-  width: 100% !important;
-}
-
-h1.title {
-  text-align: center !important;
-  width: 100% !important;
-}
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
@@ -53,6 +28,7 @@ h1.title {
                   #fff;
       overflow-x:hidden;
     }
+
     /* floating aurora blobs */
     .aura{position:fixed;inset:-20vmax;pointer-events:none;z-index:-1;filter:saturate(110%) blur(22px);opacity:.75}
     .aura::before,.aura::after{content:"";position:absolute;inset:auto;left:15%;top:10%;width:55vmax;height:55vmax;border-radius:50%;
@@ -62,16 +38,29 @@ h1.title {
     @keyframes spin{to{transform:rotate(360deg)}}
 
     .wrap{max-width:920px;margin:0 auto;padding:28px}
+
+    /* Header */
     header{display:flex;align-items:center;justify-content:space-between;padding:10px 0 14px}
     .brand{display:flex;gap:14px;align-items:center}
+    header .brand{justify-content:center !important; width:100% !important;} /* center brand row */
 
     .title{line-height:1.15;margin:0;font-size:22px;font-weight:900}
+    /* Center headers + margin under top header */
+    h1.title, .hdr{
+      text-align:center !important; display:block !important; width:100% !important;
+      margin-left:auto !important; margin-right:auto !important;
+    }
+    h1.title{ margin-bottom:18px !important; } /* tweak spacing here */
+
     .subtitle{margin:2px 0 0;font-size:12px;color:var(--muted)}
 
-    /* Glass card (no bead frame) */
+    /* Glass card */
     .card{position:relative;background:linear-gradient(180deg, rgba(255,255,255,.65), rgba(255,255,255,.45));
       border:1px solid var(--line); border-radius:22px; padding:22px; backdrop-filter: blur(16px);
       box-shadow:0 20px 55px rgba(24,16,32,.18), inset 0 0 0 1px rgba(255,255,255,.35)}
+
+    /* UID ribbon (hidden) */
+    #uidRibbon{ display:none !important; }
     .ribbon{position:absolute;left:18px;top:-12px;background:#111;color:#fff;border-radius:999px;padding:7px 12px;font-size:11px;letter-spacing:.02em}
 
     .hdr{font-size:20px;font-weight:900;margin:6px 0}
@@ -127,7 +116,6 @@ h1.title {
 
     <section class="card">
       <div id="uidRibbon" class="ribbon">UID: —</div>
-      <!-- Removed bead frame & stepper -->
       <div id="statusArea" class="grid"></div>
     </section>
   </div>
@@ -189,6 +177,9 @@ h1.title {
   </template>
 
   <script>
+    // --- Global timing control
+    const REDIRECT_DELAY = 3000; // ms
+
     // ---------------- MOCK API & DATA (single-file, no backend needed) ----------------
     const BUSINESSES = [
       { id: "b-1001", name: "Happy Paws Grooming" },
@@ -209,7 +200,7 @@ h1.title {
       const realFetch = window.fetch.bind(window);
       window.fetch = async (url, init={}) => {
         const u = typeof url === 'string' ? new URL(url, location.origin) : url;
-        const path = (typeof url === 'string') ? u.pathname + u.search : u.toString();
+        const path = (typeof url === 'string') ? u.pathname + u.search : url.toString();
 
         // Search businesses
         if (path.startsWith('/api/businesses')){
@@ -259,7 +250,8 @@ h1.title {
     const NOREDIR = params.get('noredir') === '1';
     if (PRETEND_CLAIMED) CLAIMED.set(UID, `https://pawpayaco.com/?aff=b-1002-${UID.slice(-4)}`);
 
-    $('#uidRibbon').textContent = 'UID: ' + (UID || '—');
+    // (safe even if hidden)
+    // $('#uidRibbon').textContent = 'UID: ' + (UID || '—');
 
     // No-op step helpers (kept for compatibility)
     function stepLive(){}
@@ -283,8 +275,8 @@ h1.title {
             const frag = clone('tpl-claimed');
             const a = $('a#gotoLink', frag); a.href = to;
             area.append(frag);
-            celebrate();
-            if (!NOREDIR){ await sleep(3000); location.replace(to); }
+            celebrate();                       // run confetti
+            if (!NOREDIR){ await sleep(REDIRECT_DELAY); location.replace(to); } // wait 3s
             return;
           }
         }
@@ -342,8 +334,8 @@ h1.title {
           const frag = clone('tpl-claimed');
           $('a#gotoLink', frag).href = to;
           area.append(frag);
-          celebrate();
-          if (!NOREDIR){ await sleep(300); location.replace(to); }
+          celebrate();                       // run confetti
+          if (!NOREDIR){ await sleep(REDIRECT_DELAY); location.replace(to); } // wait 3s
           return;
         }
         showError(data.error || 'Claim failed.'); btn.disabled = false; btn.textContent = orig;
@@ -361,16 +353,35 @@ h1.title {
     }
 
     // ---------- micro-confetti (no deps) ----------
-    function celebrate(){
+    function celebrate(durationMs = REDIRECT_DELAY){
       const c = document.getElementById('fx');
       const d = c.getContext('2d');
       const W = c.width = innerWidth, H = c.height = innerHeight;
       const N = 120; const P = [];
       for(let i=0;i<N;i++) P.push({x:W/2,y:80, vx:(Math.random()-0.5)*6, vy:Math.random()*-6-2, g:0.15+Math.random()*0.1, s:4+Math.random()*3, r:Math.random()*6.28, c:pick()});
-      let t=0; const id = requestAnimationFrame(draw); setTimeout(()=>cancelAnimationFrame(id), 1200);
-      function draw(){ t++; d.clearRect(0,0,W,H); for(const p of P){ p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.r+=0.1; d.save(); d.translate(p.x,p.y); d.rotate(p.r); d.fillStyle=p.c; d.fillRect(-p.s/2,-p.s/2,p.s,p.s); d.restore(); } requestAnimationFrame(draw); }
+
+      let id;
+      function draw(){
+        d.clearRect(0,0,W,H);
+        for(const p of P){
+          p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.r+=0.1;
+          d.save(); d.translate(p.x,p.y); d.rotate(p.r);
+          d.fillStyle=p.c; d.fillRect(-p.s/2,-p.s/2,p.s,p.s);
+          d.restore();
+        }
+        id = requestAnimationFrame(draw);
+      }
+      id = requestAnimationFrame(draw);
+      setTimeout(()=> cancelAnimationFrame(id), durationMs);
+
       function pick(){ const cs=["#ff7a4a","#ff6fb3","#ffd166","#7ae582","#8ecae6"]; return cs[(Math.random()*cs.length)|0]; }
     }
+
+    // Optional: keep canvas sized if viewport changes
+    addEventListener('resize', () => {
+      const c = document.getElementById('fx');
+      c.width = innerWidth; c.height = innerHeight;
+    });
   </script>
 </body>
 </html>
