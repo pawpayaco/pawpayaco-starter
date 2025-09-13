@@ -18,14 +18,28 @@ export default async function handler(req) {
 
   // GET: used by the page to auto-redirect if this UID is already linked
   if (req.method === 'GET') {
-    const uid = normUID(url.searchParams.get('u') || '');
-    if (!uid) return json({ error:'missing uid' }, 400);
+  const uid = normUID(url.searchParams.get('u') || '');
+  if (!uid) return json({ error:'missing uid' }, 400);
 
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/uids?uid=eq.${uid}&select=affiliate_url`, { headers: SB_HEADERS });
-    if (!r.ok) return json({ error:'supabase_read_failed' }, 500);
-    const [row] = await r.json();
-    return row?.affiliate_url ? json({ to: row.affiliate_url }) : json({ status:'unclaimed' });
+  const r = await fetch(
+    `${SUPABASE_URL}/rest/v1/uids?uid=eq.${uid}&select=affiliate_url`,
+    { headers: SB_HEADERS }
+  );
+
+  if (!r.ok) {
+    const details = await r.text();
+    return json({
+      error: 'supabase_read_failed',
+      status: r.status,
+      details,
+      haveUrl: !!SUPABASE_URL,
+      haveKey: !!SERVICE_KEY
+    }, 500);
   }
+
+  const [row] = await r.json();
+  return row?.affiliate_url ? json({ to: row.affiliate_url }) : json({ status:'unclaimed' });
+}
 
   // POST: link UID -> business (allow MANY UIDs per business)
   if (req.method === 'POST') {
