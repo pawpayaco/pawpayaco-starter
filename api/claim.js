@@ -16,7 +16,7 @@ const json = (obj, status=200) =>
 export default async function handler(req) {
   const url = new URL(req.url);
 
-  // --- GET: is UID already claimed?
+  // GET: used by the page to auto-redirect if this UID is already linked
   if (req.method === 'GET') {
     const uid = normUID(url.searchParams.get('u') || '');
     if (!uid) return json({ error:'missing uid' }, 400);
@@ -27,7 +27,7 @@ export default async function handler(req) {
     return row?.affiliate_url ? json({ to: row.affiliate_url }) : json({ status:'unclaimed' });
   }
 
-  // --- POST: claim UID -> business
+  // POST: link UID -> business (allow MANY UIDs per business)
   if (req.method === 'POST') {
     let body = {};
     try { body = await req.json(); } catch {}
@@ -35,22 +35,21 @@ export default async function handler(req) {
     const business_id = body.business_id || '';
     if (!uid || !business_id) return json({ error:'missing uid or business_id' }, 400);
 
-    // get business
+    // fetch business (we only need the affiliate_url; DO NOT block on is_claimed)
     const bizRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/businesses?id=eq.${business_id}&select=id,affiliate_url,is_claimed`,
+      `${SUPABASE_URL}/rest/v1/businesses?id=eq.${business_id}&select=id,affiliate_url`,
       { headers: SB_HEADERS }
     );
     if (!bizRes.ok) return json({ error:'supabase_read_failed' }, 500);
     const [biz] = await bizRes.json();
     if (!biz) return json({ error:'business_not_found' }, 404);
-    if (biz.is_claimed) return json({ error:'business_already_claimed' }, 409);
 
-    // prevent dup UID
+    // prevent duplicate for the same UID (many UIDs to one business is OK)
     const uRes = await fetch(`${SUPABASE_URL}/rest/v1/uids?uid=eq.${uid}&select=uid`, { headers: SB_HEADERS });
     const uRows = uRes.ok ? await uRes.json() : [];
     if (uRows.length) return json({ error:'uid_already_claimed' }, 409);
 
-    // create binding (store affiliate_url for instant GET redirect next time)
+    // bind UID -> business and store affiliate_url for instant GET redirects later
     const bindRes = await fetch(`${SUPABASE_URL}/rest/v1/uids`, {
       method: 'POST',
       headers: SB_HEADERS,
@@ -63,13 +62,7 @@ export default async function handler(req) {
     });
     if (!bindRes.ok) return json({ error:'bind_fail', detail: await bindRes.text() }, 500);
 
-    // optional: mark business claimed
-    await fetch(`${SUPABASE_URL}/rest/v1/businesses?id=eq.${business_id}`, {
-      method: 'PATCH',
-      headers: SB_HEADERS,
-      body: JSON.stringify({ is_claimed: true })
-    });
-
+    // IMPORTANT: do NOT set businesses.is_claimed = true anymore
     return json({ to: addUTM(biz.affiliate_url, uid), status:'claimed' });
   }
 
