@@ -258,7 +258,7 @@
             const a = $('a#gotoLink', frag); a.href = to;
             area.append(frag);
             celebrate();
-            if (!NOREDIR){ await sleep(700); location.replace(to); }
+            if (!NOREDIR){ await sleep(3000); location.replace(to); }
             return;
           }
         }
