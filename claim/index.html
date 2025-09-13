@@ -175,213 +175,167 @@
       <button class="btn claimBtn">Claim</button>
     </li>
   </template>
-
   <script>
-    // --- Global timing control
-    const REDIRECT_DELAY = 3000; // ms
+  // --- Global timing control
+  const REDIRECT_DELAY = 3000; // ms
 
-    // ---------------- MOCK API & DATA (single-file, no backend needed) ----------------
-    const BUSINESSES = [
-      { id: "b-1001", name: "Happy Paws Grooming" },
-      { id: "b-1002", name: "Downtown Dog Daycare" },
-      { id: "b-1003", name: "Lakeview Veterinary" },
-      { id: "b-1004", name: "Good Boy Sit & Stay" },
-      { id: "b-1005", name: "Paws & Relax Spa" },
-      { id: "b-1006", name: "City Pet Boutique" },
-      { id: "b-1007", name: "Tail Waggers Co." },
-      { id: "b-1008", name: "Northside Kennels" },
-      { id: "b-1009", name: "Fetch n' Run Trainers" },
-      { id: "b-1010", name: "Sunset Animal Clinic" }
-    ];
+  // === Supabase (client) ===
+  // TODO: set these to your project values (anon key is fine for public reads)
+  const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";
+  const SUPABASE_ANON_KEY = "YOUR_ANON_KEY";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const CLAIMED = new Map(); // uid -> affiliate URL
+  async function searchBusinessesByName(q) {
+    const { data, error } = await sb
+      .from("businesses")
+      .select("id, name, affiliate_url")
+      .ilike("name", `%${q || ""}%`)
+      .order("name", { ascending: true })
+      .limit(25);
+    if (error) throw error;
+    return data || [];
+  }
 
-    (function installMockFetch(){
-      const realFetch = window.fetch.bind(window);
-      window.fetch = async (url, init={}) => {
-        const u = typeof url === 'string' ? new URL(url, location.origin) : url;
-        const path = (typeof url === 'string') ? u.pathname + u.search : url.toString();
+  // ---------------- UTILITIES ----------------
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  const clone = (id) => document.getElementById(id).content.cloneNode(true);
+  const sleep = (ms) => new Promise(r=>setTimeout(r,ms));
+  const debounce = (fn, ms=220) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); } };
 
-        // Search businesses
-        if (path.startsWith('/api/businesses')){
-          const q = (u.searchParams.get('search') || '').toLowerCase();
-          const items = BUSINESSES.filter(b => b.name.toLowerCase().includes(q));
-          return new Response(JSON.stringify(items), { status: 200, headers: { 'Content-Type': 'application/json' } });
-        }
+  // ---------------- STATE ----------------
+  const params = new URL(location.href).searchParams;
+  const UID = (params.get('u') || '0412AB34CD5678').trim(); // default demo UID
+  const B_HINT = (params.get('b') || '').trim();
+  const NOREDIR = params.get('noredir') === '1';
 
-        // Claim API
-        if (path.startsWith('/api/claim')){
-          const method = (init.method || 'GET').toUpperCase();
-          if (method === 'GET'){
-            const uid = (u.searchParams.get('u') || '').trim();
-            if (CLAIMED.has(uid)){
-              return new Response(JSON.stringify({ to: CLAIMED.get(uid) }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-            }
-            return new Response(JSON.stringify({ status: 'unclaimed' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-          }
-          if (method === 'POST'){
-            try{
-              const body = JSON.parse(init.body || '{}');
-              const { uid, business_id } = body;
-              const aff = `https://pawpayaco.com/?aff=${encodeURIComponent(business_id)}-${encodeURIComponent(uid.slice(-4))}`;
-              if (!CLAIMED.has(uid)) CLAIMED.set(uid, aff); // first claim wins
-              return new Response(JSON.stringify({ to: CLAIMED.get(uid) }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-            }catch(e){
-              return new Response(JSON.stringify({ error: 'Bad JSON' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-            }
-          }
-        }
-        return realFetch(url, init);
-      };
-    })();
+  // ---------------- FLOW ----------------
+  const area = $('#statusArea');
+  area.append(clone('tpl-checking'));
 
-    // ---------------- UTILITIES ----------------
-    const $ = (sel, root=document) => root.querySelector(sel);
-    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-    const clone = (id) => document.getElementById(id).content.cloneNode(true);
-    const sleep = (ms) => new Promise(r=>setTimeout(r,ms));
-    const debounce = (fn, ms=220) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); } };
+  init().catch(err => showError(err?.message || 'Init failed'));
 
-    // ---------------- STATE ----------------
-    const params = new URL(location.href).searchParams;
-    const UID = (params.get('u') || '0412AB34CD5678').trim(); // default demo UID
-    const B_HINT = (params.get('b') || '').trim();
-    const PRETEND_CLAIMED = params.get('claimed') === '1';
-    const NOREDIR = params.get('noredir') === '1';
-    if (PRETEND_CLAIMED) CLAIMED.set(UID, `https://pawpayaco.com/?aff=b-1002-${UID.slice(-4)}`);
+  async function init(){
+    if (!UID) throw new Error('Missing UID in URL (?u=...)');
 
-    // (safe even if hidden)
-    // $('#uidRibbon').textContent = 'UID: ' + (UID || '—');
-
-    // No-op step helpers (kept for compatibility)
-    function stepLive(){}
-    function stepDone(){}
-
-    // ---------------- FLOW ----------------
-    const area = $('#statusArea');
-    area.append(clone('tpl-checking'));
-
-    init().catch(err => showError(err?.message || 'Init failed'));
-
-    async function init(){
-      if (!UID) throw new Error('Missing UID in URL (?u=...)');
-      try{
-        const res = await fetch(`/api/claim?u=${encodeURIComponent(UID)}`);
-        if (res.ok){
-          const data = await res.json();
-          const to = data.to || data.affiliateUrl;
-          if (to){
-            area.innerHTML = '';
-            const frag = clone('tpl-claimed');
-            const a = $('a#gotoLink', frag); a.href = to;
-            area.append(frag);
-            celebrate();                       // run confetti
-            if (!NOREDIR){ await sleep(REDIRECT_DELAY); location.replace(to); } // wait 3s
-            return;
-          }
-        }
-      }catch(e){/* continue to search */}
-
-      // Show search UI
-      area.innerHTML = '';
-      const frag = clone('tpl-search'); area.append(frag);
-      const inp = $('#search'); const list = $('#results');
-      if (B_HINT) { inp.value = B_HINT; query(B_HINT); } else { query(''); } inp.focus(); inp.select();
-
-      const doQuery = debounce(v=>query(v), 220);
-      inp.addEventListener('input', e=> doQuery(e.target.value));
-
-      async function query(q){
-        list.classList.remove('hidden');
-        list.innerHTML = '';
-        list.append(spinnerRow());
-        try{
-          const r = await fetch(`/api/businesses?search=${encodeURIComponent(q||'')}`);
-          const items = r.ok ? await r.json() : [];
-          list.innerHTML = '';
-          if (!items.length){ list.append(clone('tpl-empty')); return; }
-          for (const b of items.slice(0,12)){
-            const row = clone('tpl-item');
-            $('.name', row).textContent = b.name || 'Unnamed';
-            $('.id', row).textContent = b.id || '—';
-            const btn = $('.claimBtn', row);
-            btn.addEventListener('click', ()=> claim(UID, b.id, btn));
-            list.append(row);
-          }
-        }catch(e){
-          list.innerHTML = '';
-          const li = document.createElement('li'); li.className='item';
-          li.innerHTML = `<div class="muted">Search error. <button class="btn ghost" onclick="location.reload()">Reload</button></div>`;
-          list.append(li);
-        }
-      }
-    }
-
-    function spinnerRow(){
-      const li = document.createElement('li'); li.className='item';
-      li.innerHTML = `<div class="row"><div class="spinner" style="color:var(--brand)"></div><span class="muted">Loading…</span></div>`;
-      return li;
-    }
-
-    async function claim(uid, business_id, btn){
-      const orig = btn.textContent; btn.disabled = true; btn.innerHTML = `<span class="row" style="gap:8px"><span class="spinner"></span>Claiming…</span>`;
-      try{
-        const r = await fetch('/api/claim', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ uid, business_id }) });
-        const data = await r.json().catch(()=>({}));
-        if (r.ok && (data.to || data.affiliateUrl)){
-          const to = data.to || data.affiliateUrl;
+    // If already claimed on the server, this returns { to: "<affiliate_url>" }
+    try{
+      const res = await fetch(`/api/claim?u=${encodeURIComponent(UID)}`);
+      if (res.ok){
+        const data = await res.json();
+        const to = data.to || data.affiliateUrl;
+        if (to){
           area.innerHTML = '';
           const frag = clone('tpl-claimed');
-          $('a#gotoLink', frag).href = to;
+          const a = $('a#gotoLink', frag); a.href = to;
           area.append(frag);
-          celebrate();                       // run confetti
-          if (!NOREDIR){ await sleep(REDIRECT_DELAY); location.replace(to); } // wait 3s
+          celebrate();
+          if (!NOREDIR){ await sleep(REDIRECT_DELAY); location.replace(to); }
           return;
         }
-        showError(data.error || 'Claim failed.'); btn.disabled = false; btn.textContent = orig;
-      }catch(e){ showError('Network error.'); btn.disabled = false; btn.textContent = orig; }
-    }
+      }
+    }catch(e){ /* fall through to search */ }
 
-    function showError(msg){
-      const area = document.getElementById('statusArea');
-      area.innerHTML = '';
-      const frag = clone('tpl-error');
-      const banner = frag.querySelector('.banner'); banner.textContent = msg;
-      frag.getElementById('retryBtn').addEventListener('click', ()=> location.reload());
-      frag.getElementById('supportBtn').addEventListener('click', (e)=>{ e.preventDefault(); alert('Demo: open mailto to support with UID.'); });
-      area.append(frag);
-    }
+    // Show search UI (now backed by Supabase)
+    area.innerHTML = '';
+    const frag = clone('tpl-search'); area.append(frag);
+    const inp = $('#search'); const list = $('#results');
+    if (B_HINT) { inp.value = B_HINT; query(B_HINT); } else { query(''); } inp.focus(); inp.select();
 
-    // ---------- micro-confetti (no deps) ----------
-    function celebrate(durationMs = REDIRECT_DELAY){
-      const c = document.getElementById('fx');
-      const d = c.getContext('2d');
-      const W = c.width = innerWidth, H = c.height = innerHeight;
-      const N = 120; const P = [];
-      for(let i=0;i<N;i++) P.push({x:W/2,y:80, vx:(Math.random()-0.5)*6, vy:Math.random()*-6-2, g:0.15+Math.random()*0.1, s:4+Math.random()*3, r:Math.random()*6.28, c:pick()});
+    const doQuery = debounce(v=>query(v), 220);
+    inp.addEventListener('input', e=> doQuery(e.target.value));
 
-      let id;
-      function draw(){
-        d.clearRect(0,0,W,H);
-        for(const p of P){
-          p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.r+=0.1;
-          d.save(); d.translate(p.x,p.y); d.rotate(p.r);
-          d.fillStyle=p.c; d.fillRect(-p.s/2,-p.s/2,p.s,p.s);
-          d.restore();
+    async function query(q){
+      list.classList.remove('hidden');
+      list.innerHTML = '';
+      list.append(spinnerRow());
+      try{
+        const items = await searchBusinessesByName(q || '');
+        list.innerHTML = '';
+        if (!items.length){ list.append(clone('tpl-empty')); return; }
+        for (const b of items.slice(0,12)){
+          const row = clone('tpl-item');
+          $('.name', row).textContent = b.name || 'Unnamed';
+          $('.id', row).textContent = b.id || '—';
+          const btn = $('.claimBtn', row);
+          btn.addEventListener('click', ()=> claim(UID, b.id, btn));
+          list.append(row);
         }
-        id = requestAnimationFrame(draw);
+      }catch(e){
+        list.innerHTML = '';
+        const li = document.createElement('li'); li.className='item';
+        li.innerHTML = `<div class="muted">Search error. <button class="btn ghost" onclick="location.reload()">Reload</button></div>`;
+        list.append(li);
+      }
+    }
+  }
+
+  function spinnerRow(){
+    const li = document.createElement('li'); li.className='item';
+    li.innerHTML = `<div class="row"><div class="spinner" style="color:var(--brand)"></div><span class="muted">Loading…</span></div>`;
+    return li;
+  }
+
+  async function claim(uid, business_id, btn){
+    const orig = btn.textContent; btn.disabled = true; btn.innerHTML = `<span class="row" style="gap:8px"><span class="spinner"></span>Claiming…</span>`;
+    try{
+      const r = await fetch('/api/claim', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ uid, business_id })
+      });
+      const data = await r.json().catch(()=>({}));
+      if (r.ok && (data.to || data.affiliateUrl)){
+        const to = data.to || data.affiliateUrl;
+        area.innerHTML = '';
+        const frag = clone('tpl-claimed');
+        $('a#gotoLink', frag).href = to;
+        area.append(frag);
+        celebrate();
+        if (!NOREDIR){ await sleep(REDIRECT_DELAY); location.replace(to); }
+        return;
+      }
+      showError(data.error || 'Claim failed.'); btn.disabled = false; btn.textContent = orig;
+    }catch(e){
+      showError('Network error.'); btn.disabled = false; btn.textContent = orig;
+    }
+  }
+
+  function showError(msg){
+    const area = document.getElementById('statusArea');
+    area.innerHTML = '';
+    const frag = clone('tpl-error');
+    const banner = frag.querySelector('.banner'); banner.textContent = msg;
+    frag.getElementById('retryBtn').addEventListener('click', ()=> location.reload());
+    frag.getElementById('supportBtn').addEventListener('click', (e)=>{ e.preventDefault(); alert('Demo: open mailto to support with UID.'); });
+    area.append(frag);
+  }
+
+  // ---------- micro-confetti (no deps) ----------
+  function celebrate(durationMs = REDIRECT_DELAY){
+    const c = document.getElementById('fx');
+    const d = c.getContext('2d');
+    const W = c.width = innerWidth, H = c.height = innerHeight;
+    const N = 120; const P = [];
+    for(let i=0;i<N;i++) P.push({x:W/2,y:80, vx:(Math.random()-0.5)*6, vy:Math.random()*-6-2, g:0.15+Math.random()*0.1, s:4+Math.random()*3, r:Math.random()*6.28, c:pick()});
+    let id;
+    function draw(){
+      d.clearRect(0,0,W,H);
+      for(const p of P){
+        p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.r+=0.1;
+        d.save(); d.translate(p.x,p.y); d.rotate(p.r);
+        d.fillStyle=p.c; d.fillRect(-p.s/2,-p.s/2,p.s,p.s);
+        d.restore();
       }
       id = requestAnimationFrame(draw);
-      setTimeout(()=> cancelAnimationFrame(id), durationMs);
-
-      function pick(){ const cs=["#ff7a4a","#ff6fb3","#ffd166","#7ae582","#8ecae6"]; return cs[(Math.random()*cs.length)|0]; }
     }
+    id = requestAnimationFrame(draw);
+    setTimeout(()=> cancelAnimationFrame(id), durationMs);
+    function pick(){ const cs=["#ff7a4a","#ff6fb3","#ffd166","#7ae582","#8ecae6"]; return cs[(Math.random()*cs.length)|0]; }
+  }
 
-    // Optional: keep canvas sized if viewport changes
-    addEventListener('resize', () => {
-      const c = document.getElementById('fx');
-      c.width = innerWidth; c.height = innerHeight;
-    });
-  </script>
-</body>
-</html>
+  addEventListener('resize', () => {
+    const c = document.getElementById('fx');
+    c.width = innerWidth; c.height = innerHeight;
+  });
+</script>
