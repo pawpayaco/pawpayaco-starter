@@ -52,7 +52,7 @@
     #uidRibbon{ display:none !important; }
     .ribbon{position:absolute;left:18px;top:-12px;background:#111;color:#fff;border-radius:999px;padding:7px 12px;font-size:11px;letter-spacing:.02em}
 
-    .hdr{font-size:20px;font-weight:900;margin:10px 0 14px 0;} /* <-- single header, desired bottom margin */
+    .hdr{font-size:20px;font-weight:900;margin:10px 0 14px 0;}
     .p{color:var(--muted);font-size:13px;margin:0}
 
     .field{position:relative}
@@ -61,7 +61,17 @@
     .searchIcon{position:absolute;right:14px;top:50%;transform:translateY(-50%);opacity:.7}
 
     .list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;background:transparent}
-    .item{display:flex;justify-content:space-between;align-items:center;padding:14px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.7);box-shadow:0 8px 22px rgba(24,16,32,.12)}
+
+    /* Bubble */
+    .item{
+      display:flex;justify-content:space-between;align-items:center;
+      padding:14px;border:1px solid var(--line);border-radius:16px;
+      background:rgba(255,255,255,.7);box-shadow:0 8px 22px rgba(24,16,32,.12);
+      min-height:72px; /* gives a nice tall bubble */
+    }
+    /* Left side = flex so the name centers vertically */
+    .item .left{flex:1;display:flex;align-items:center}
+    .name{font-weight:900;font-size:18px;line-height:1.2}
 
     .btn{height:42px;border:0;border-radius:12px;padding:0 16px;background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;font-weight:800;cursor:pointer;transition:transform .08s ease}
     .btn:active{transform:translateY(1px)}
@@ -136,11 +146,11 @@
     <li class="item muted" aria-disabled="true">No matching business found.</li>
   </template>
 
+  <!-- UPDATED ITEM TEMPLATE: no ID line, name centered vertically -->
   <template id="tpl-item">
     <li class="item">
-      <div>
-        <div class="name" style="font-weight:900"></div>
-        <div class="hint" style="margin-top:4px"><span class="muted">ID:</span> <span class="id"></span></div>
+      <div class="left">
+        <div class="name"></div>
       </div>
       <button class="btn claimBtn">Claim</button>
     </li>
@@ -150,7 +160,7 @@
     // --- Config
     const REDIRECT_DELAY = 3000;
     const SUPABASE_URL = "https://hoaixfylzqnpkojsfnvv.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhvYWl4ZnlsenFucGtvanNmbnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1NTY2NDIsImV4cCI6MjA3MzEzMjY0Mn0.7T_UxPs7sXTQXV7fp1v_KEjF1zu9-EUAQOH6OnG9RXE";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhvYWl4ZnljenFucGtvanNmbnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1NTY2NDIsImV4cCI6MjA3MzEzMjY0Mn0.7T_UxPs7sXTQXV7fp1v_KEjF1zu9-EUAQOH6OnG9RXE";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // --- Helpers
@@ -216,9 +226,8 @@
           for (const b of items.slice(0,12)){
             const itemFrag = clone('tpl-item');
             itemFrag.querySelector('.name').textContent = b.name || 'Unnamed';
-            itemFrag.querySelector('.id').textContent   = b.id || '—';
 
-            // IMPORTANT: capture button BEFORE appending the fragment
+            // capture button BEFORE appending the fragment
             const btn = itemFrag.querySelector('.claimBtn');
             btn.addEventListener('click', () => claim(UID, b.id, btn));
 
