@@ -1,0 +1,15 @@
+{
+  "redirects": [
+    {
+      "source": "/t",
+      "has": [{ "type": "query", "key": "u" }],
+      "destination": "https://tapify-marketplace.vercel.app/?u=:u",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "destination": "https://tapify-marketplace.vercel.app/:path*",
+      "permanent": true
+    }
+  ]
+}
